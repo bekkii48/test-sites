@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="yandex-verification" content="401298e39c192584" />
+    <meta name="google-site-verification" content="h8h7k41nCBvLcloCB_J4rc9le-79VxTyPEdqbyipueg" />
+
+    <title>Forms</title>
+    <link rel="shortcut icon" type="image/png" href="/static/favicon.ico">
+
+
+    <link href="/static/jquery-ui/jquery-ui.min.css" type="text/css" media="all" rel="stylesheet">
+    <link href="/static/bootstrap-4.2.1/css/bootstrap.css" type="text/css" media="all" rel="stylesheet">
+    <link href="/static/browser/card_color_theme.css" type="text/css" media="all" rel="stylesheet">
+    <link href="/static/browser/forms/forms.css" type="text/css" media="all" rel="stylesheet">
+    <script src="/static/jquery/jquery.min.js"></script>
+    <script src="/static/jquery/jquery.tmpl.js"></script>
+    <script src="/static/jsrender.js"></script>
+    <script src="/static/jquery-ui/jquery-ui.min.js"></script>
+    <script src="/static/jquery-ui/jquery-ui.localization.ru.js"></script>
+    <script src="/static/bootstrap-4.2.1/js/bootstrap.min.js"></script>
+    <script src="/static/helpers.js"></script>
+    <script src="/static/Modal.js"></script>
+    <script src="/static/ContextMenu.js"></script>
+    <script src="/static/datetime/datetime.js"></script>
+    <script src="/static/bootstrap/BootstrapContextMenu.js"></script>
+    <script src="/static/small-plugins.js"></script>
+    <script src="/static/jquery.datetimepicker/jquery.datetimepicker.js"></script>
+    <script src="/static/browser/forms/autofill.js"></script>
+
+
+
+    <style type="text/css">
+        @media (max-width: 576px) {
+            #menuItemDesktopForms {
+                display: none;
+            }
+        }
+
+        @media (min-width: 576px) {
+            #menuItemMobileForms {
+                display: none;
+            }
+        }
+
+    </style>
+
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript" >
+        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+        ym(63272401, "init", {
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true
+        });
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/63272401" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Yandex.Metrika counter -->
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand">BroTest</a>
+    <button class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#navbarItems" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="navbar-collapse collapse" id="navbarItems">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item"><a class="nav-link" href="/browser/cards/with3ds">Платёж с 3ds</a></li>
+            <li class="nav-item"><a class="nav-link" href="/browser/cards/no3ds">Платёж без 3ds</a></li>
+            <li class="nav-item"><a class="nav-link" href="/browser/cards/iframe">Платёж в iframe</a></li>
+            <li class="nav-item active">
+                <a class="nav-link" href="/browser/forms/" id="menuItemDesktopForms">Формы</a>
+                <div id="menuItemMobileForms">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                        Формы
+                    </a>
+                    <div class="dropdown-menu show" aria-labelledby="navbarDropdownMenuLink">
+                        <a href="/browser/forms" class='dropdown-item'  style="font-weight: bold">Все формы</a>
+                    </div>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container-fluid">
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+    <style type="text/css">
+    .input {
+        margin: 5px 0;
+        width: 600px;
+    }
+    #fio_type_chooser, #date_birth_type_chooser {
+        margin: 10px 0 0 10px;
+    }
+    i.fas {
+        color: #007bff;
+        cursor: pointer;
+    }
+    i.fas:hover {
+        opacity: 0.8;
+    }
+    .form_group_control {
+        display: contents;
+    }
+    .fio .col {
+        padding: 0 5px;
+    }
+    .fio .threeFieldsName {
+        display: none;
+    }
+</style>
+
+    <script type="text/javascript" src="https://yastatic.net/s3/passport-static/autofill/v1/script.js"></script>
+
+    <script type="text/javascript">
+    $(function() {
+        new Autofill("False");
+    });
+</script>
+    <form id="form" style="width: 700px;" action="/browser/forms/success">
+        <button class="btn btn-warning newFormInput" id="fill_from_account" style="display: none" type="button">Заполнить из Яндекса</button>
+        <div class="form-group person">
+            <b>Персона</b>
+            <div class="form_group_control">
+                <i class="fas fa-plus-circle add"></i>
+                <i class="fas fa-minus-circle remove"></i>
+            </div>
+            <div class="input-group fio">
+
+                <input type="text" class="form-control input fullNameBlock full_name" placeholder="Имя Фамилия Отчество" title="fio" name="full_name">
+
+                <div class="form-inline">
+                    <div class="form-group threeFieldsName">
+                        <input type="text" class="form-control first_name" placeholder="Имя" title="first" name="first_name">
+                        <input type="text" class="form-control last_name" placeholder="Фамилия" title="last" name="last_name">
+                        <input type="text" class="form-control middle_name" placeholder="Отчество" title="middle" name="middle_name">
+                    </div>
+                </div>
+
+                <div class="input-group-append" id="fio_type_chooser">
+                    <div class="custom-control custom-radio custom-control-inline">
+                        <input type="radio" id="one_field_name" name="fio_type_chooser" class="custom-control-input one_field_name" checked>
+                        <label class="custom-control-label" for="one_field_name">Одно поле</label>
+                    </div>
+                    <div class="custom-control custom-radio custom-control-inline">
+                        <input type="radio" name="fio_type_chooser" id="three_fields_name" class="custom-control-input three_fields_name">
+                        <label class="custom-control-label" for="three_fields_name">Три поля</label>
+                    </div>
+                </div>
+            </div>
+            <div class="input-group input">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="sex">Пол</label>
+                </div>
+                <select class="custom-select" title="sex" name="sex">
+                    <option value=""></option>
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <input type="text" class="form-control input textDateBirth" placeholder="Дата рождения" title="date_birth" name="date_birth">
+
+                <!--<div class="form-inline">
+                    <div class="form-group selectDateBirth">
+                        <select class="form-control" name="first_name">
+                        <input type="text" class="form-control" placeholder="Фамилия" title="last" name="last_name">
+                        <input type="text" class="form-control" placeholder="Отчество" title="middle" name="middle_name">
+                    </div>
+                </div>
+
+                <div class="input-group-append" id="date_birth_type_chooser">
+                    <div class="custom-control custom-radio custom-control-inline">
+                        <input type="radio" id="db_input" name="date_birth_type_chooser" class="custom-control-input" checked>
+                        <label class="custom-control-label" for="db_input">Текстовое поле</label>
+                    </div>
+                    <div class="custom-control custom-radio custom-control-inline">
+                        <input type="radio" id="db_select" name="date_birth_type_chooser" class="custom-control-input">
+                        <label class="custom-control-label" for="db_select">Селекты</label>
+                    </div>
+                </div>-->
+            </div>
+            <div class="form-row" style="margin-top: 20px;">
+                <div class="form-group col-md-4">
+                    <label for="docType">Тип документа</label>
+                    <select id="docType" class="form-control">
+                        <option selected>Российский паспорт</option>
+                        <option selected>Загран паспорт</option>
+                    </select>
+                </div>
+                <div class="form-group col-md-6">
+                    <label for="docNumber">Номер документа</label>
+                    <input type="text" class="form-control" id="docNumber">
+                </div>
+            </div>
+        </div>
+        <div class="form-group contacts">
+            <b>Контакты</b>
+            <div class="form_group_control">
+                <i class="fas fa-plus-circle add"></i>
+                <i class="fas fa-minus-circle remove"></i>
+            </div>
+            <input type="text" class="form-control input phone" placeholder="Телефон" id="phone" title="phone" name="phone">
+            <input type="text" class="form-control input email" placeholder="Почта" id="email" title="email" name="email">
+        </div>
+        <div class="form-group address">
+            <b>Адрес</b>
+            <div class="form_group_control">
+                <i class="fas fa-plus-circle add"></i>
+                <i class="fas fa-minus-circle remove"></i>
+            </div>
+            <div class="input-group input">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="country">Страна</label>
+                </div>
+                <select class="custom-select country" title="country" name="country">
+                    <option value=""></option>
+                    <option value="RU">Россия</option>
+                    <option value="IL">Израиль</option>
+                </select>
+            </div>
+            <input type="text" class="form-control input region" placeholder="Область" title="region" name="region">
+            <input type="text" class="form-control input city" placeholder="Город" title="city" name="city">
+            <input type="text" class="form-control input address" placeholder="Адрес" title="address" name="address">
+            <input type="text" class="form-control input zipcode" placeholder="Индекс" title="zipcode" name="zipcode">
+        </div>
+        <div class="form-group other">
+            <b>Другое</b>
+            <div class="form_group_control">
+                <i class="fas fa-plus-circle add"></i>
+                <i class="fas fa-minus-circle remove"></i>
+            </div>
+            <input type="text" class="form-control input user_name" placeholder="Имя пользователя" title="user name">
+            <input type="text" class="form-control input organization" placeholder="Организация" title="organization">
+            <input type="text" class="form-control input organization" placeholder="Организация (autofill=off)" title="organization" autocomplete="off">
+            <input type="text" class="form-control input organization" placeholder="Организация (autofill=off)" title="organization" autocomplete="no">
+        </div>
+        <div id="form_action_btns">
+            <button class="btn btn-warning newFormInput" id="generate">Сгенерировать данные</button>
+            <button class="btn btn-info newFormInput" id="transliterate">Транслитерировать</button>
+            <button class="btn btn-success newFormInput" id="submitBtn">Отправить</button>
+        </div>
+    </form>
+
+</div>
+
+</body>
+</html>
