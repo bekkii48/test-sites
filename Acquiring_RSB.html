@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="icon" type="image/x-icon" href="/test-sites/images/fox-icon.ico">
+    <title>RSB Payment Page</title>
+
+</head>
+<body>
+<form action="/test-sites/success.html">
+<div class="cardinput">
+    <div class="buttons">
+        <div id="yandex-pay-button"><button id="yandexpay-button-1" type="button" aria-label="Yandex Pay" class="ya-pay-button ya-pay-button_type_pay ya-pay-button_theme_black ya-pay-button_width_auto ya-pay-button_theme-type_dark" style="overflow: hidden !important; flex: 1 0 auto !important; box-sizing: border-box !important; cursor: pointer !important; user-select: none !important; border-width: 1px !important; border-style: solid !important; background: url(&quot;https://pay.yandex.ru/web/sdk/v1/_/yapay-simple-white-red.1b5d5a1b.svg&quot;) center center / contain no-repeat content-box border-box rgb(0, 0, 0) !important; transition: opacity 150ms linear 0s, filter 150ms linear 0s, background-color 150ms linear 0s !important; transform: translate3d(0px, 0px, 0px) !important; padding: 13px 36px;"></button></div>
+    </div>
+    <div id="sbp-button">
+    </div>
+    <div class="cardright">
+        <div class="cardright-line"></div>
+        <div class="font_10 block_mr_17">CVC2/CVV2</div>
+        <div class="cardright-cvc card_cvc2">
+            <input id="cvc2" type="tel" name="cvc2" autocomplete="cc-csc" size="4" maxlength="4" placeholder="000" onkeyup="autotab(this, document.getElementById('cardname'))">
+        </div>
+        <div class="cardleft">
+            <div class="cardnr">
+                <div class="textdiv">
+                    <span class="text_uppercase font_10">Номер карты</span>
+                </div>
+                <input id="cardnr" type="tel" name="cardnr" autocomplete="cc-number" size="23" maxlength="23" placeholder="0000 0000 0000 0000">
+            </div>
+            <div class="cardex">
+                <table class="text card_expiry block_mb_8">
+                    <tbody><tr>
+                        <td class="vertical_center">
+                            <span class="text_uppercase font_10 block_mr_5">valid</span><br>
+                            <span class="text_uppercase font_10 block_mr_5">thru</span>
+                        </td>
+                        <td class="leftcol">
+                            <input id="expmonth" onkeyup="autotab(this, document.getElementById('expyear'))" type="tel" name="validMONTH" autocomplete="cc-exp-month" size="2" maxlength="2" placeholder="ММ">
+                            <span>/</span>
+                        </td>
+                        <td class="rightcol">
+                            <input id="expyear" onkeyup="autotab(this, document.getElementById('cvc2'))" type="tel" name="validYEAR" autocomplete="cc-exp-year" size="2" maxlength="2" placeholder="ГГ">
+                        </td>
+                    </tr>
+                    </tbody></table>
+            </div>
+            <div class="cardname">
+                <div class="textdiv">
+                    <span class="text_uppercase font_10">Держатель карты</span>
+                </div>
+                <input id="cardname" type="text" name="cardname" autocomplete="cc-name" size="19" maxlength="27" placeholder="IVAN IVANOV" onkeyup="translit() ">
+            </div>
+        </div>
+    </div>
+    <div class="notify">
+        <div class="flex justify-content_between align-items_center block_mb_20">
+            <span class="email_phone_text" id="email_text">E‑mail:</span>
+            <div class="width_100">
+                <input id="ecomm_notify_email" type="text" name="ecomm_notify_email" placeholder="emailnotification@rsb.ru" onkeyup="translit()" maxlength="100">
+                <div class="tooltip" style="">
+                    <img class="tooltipimg" src="./RSB Payment Page_files/hint.png">
+                    <span class="tooltiptext">«На&nbsp;этот e-mail адрес мы&nbsp;направим уведомление об&nbsp;оплате. Если уведомление не&nbsp;нужно, оставьте поле пустым»</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-content_between align-items_center">
+            <span class="email_phone_text">Телефон:</span>
+            <div class="width_100 flex justify-content_between">
+                <input id="ecomm_notify_phone_cc" type="tel" name="ecomm_notify_phone_cc" placeholder="+7 (000)" maxlength="10">
+                <input id="ecomm_notify_phone" type="tel" name="ecomm_notify_phone" placeholder="000 00 00" maxlength="15">
+            </div>
+        </div>
+    </div>
+    <div class="buttons">
+        <button class="btn_submit" type="submit" value="submit" onclick="return FormValidator(this)">Оплатить картой</button>
+    </div>
+    <div class="check" style="text-align: center;">
+        <input id="notify_checkbox" type="checkbox" checked="" hidden="" name="notify_checkbox" value="true">
+        <span class="check_text">Нажимая кнопку <span class="font_bold">«Оплатить»</span>, вы соглашаетесь</span><br>
+        <a class="offer">с условиями передачи адреса электронной почты и номера телефона</a>
+        <span class="hint">
+                    «Условия передачи адреса электронной почты
+                    <br>
+                    Я даю АО&nbsp;„Банк Русский Стандарт“ (адрес: 105187, г. Москва, ул. Ткацкая, д.&nbsp;36) (далее&nbsp;— Банк) свое согласие на&nbsp;обработку всех моих персональных данных, указанных на&nbsp;платежной странице о&nbsp;совершении операции с&nbsp;использованием платежной карты (далее&nbsp;— Страница), в&nbsp;том числе третьим лицам, в&nbsp;том числе на&nbsp;трансграничную передачу, а&nbsp;также иных персональных данных, полученных Банком в&nbsp;результате такой обработки, в&nbsp;целях:
+                    <br>
+                    • создания информационных баз Банка;
+                    <br>
+                    • предложения продуктов и&nbsp;услуг Банка и&nbsp;его партнеров, в&nbsp;том числе рекламы;
+                    <br>
+                    • заключения договоров, где я&nbsp;являюсь стороной, или выгодоприобретателем, или поручителем;
+                    <br>
+                    • предоставления информации третьим лицам, которые осуществляют деятельность по&nbsp;обеспечению возврата просроченной задолженности;
+                    <br>
+                    • в&nbsp;целях страхования моей жизни/здоровья/имущества и&nbsp;иного страхования с&nbsp;правом предоставления данных страховым компания, включая АО&nbsp;„Русский Стандарт Страхования“.
+                    <br>
+                    Указанное согласие дано на&nbsp;срок 20&nbsp;лет и&nbsp;может быть отозвано по&nbsp;письменному заявлению.
+                    Также я&nbsp;даю свое согласие на&nbsp;получение от&nbsp;Банка на&nbsp;адрес электронной почты и&nbsp;номер телефона, указанные мной на&nbsp;Странице, рекламной информации.».
+                </span>
+    </div>
+</div>
+</form>
+</body>
+</html>
