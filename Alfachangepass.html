@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/test-sites/images/fox-icon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Смена пароля</title>
+</head>
+<body>
+<form action="/test-sites/success.html">
+  <label>SMS:</label>
+  <input class="input__control user-success error is-error" id="USER_PHONE_CODE" name="USER_PHONE_CODE" maxlength="50" value="" data-rule-required="true" data-rule-customphonecode="true" data-custom-valid="" >
+  <br>
+  <input class="input__control" id="pass" name="USER_PASSWORD" type="password" value="" minlength="8" maxlength="21" required="" data-rule-required="true" data-rule-minlength="8" data-rule-maxlength="21">
+  <br>
+  <input class="input__control" id="passRepeat" name="USER_CONFIRM_PASSWORD" type="password" value="" minlength="8" maxlength="21" data-rule-equalto="#pass" data-msg-equalto="Пароли не совпадают" data-rule-required="true" data-rule-minlength="8" data-rule-maxlength="21">
+  <br>
+  <input type="submit" value="Отправить">
+</form>
+</body>
+</html>
