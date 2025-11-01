@@ -1,226 +1,137 @@
 <!doctype html>
 <html lang="ru">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Шаринг вкладки + запрос «прокрутка/масштаб» (Chromium)</title>
-    <style>
-        :root { --card:#fff; --muted:#667; --border:#e6e6e6; --bg:#f6f7fb; }
-        body { font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; background: var(--bg); color:#111; }
-        h1 { font-size: 20px; margin: 0 0 12px; }
-        .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-        button { padding: 9px 14px; border-radius: 10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
-        button:disabled { opacity:.5; cursor:default; }
-        .panel { background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-        #stage { position: relative; width: min(80vw, 980px); height: clamp(240px, 48vh, 580px); background:#000; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
-        #preview { position:absolute; inset:0; object-fit: contain; width:100%; height:100%; transform-origin:center; }
-        .log { white-space: pre-wrap; background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 12px; margin-top: 12px; min-height: 120px; }
-        .perm { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f2f4f8; border:1px solid #e6e6e6; padding:6px 8px; border-radius:10px; }
-    </style>
-</head>
-<body>
-<h1>Как в Meet: запрос «Прокрутка и масштаб вкладки»</h1>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pop-up тест: «Прокрутка/масштаб вкладки»</title>
+<style>
+    body{font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:24px}
+    button{padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
+    button:disabled{opacity:.5;cursor:default}
+    .log{white-space:pre-wrap;background:#f7f7f9;border:1px solid #eee;border-radius:10px;padding:10px;margin-top:12px;min-height:120px}
+    video{display:block;width:min(70vw,900px);background:#000;border:1px solid #ddd;border-radius:10px;margin-top:10px}
+</style>
 
-<div class="panel">
-    <div><b>Шаги:</b></div>
-    <div>1) Нажмите «Начать шаринг (вкладка)» и выберите <u>вкладку браузера</u> (в Chromium появится стандартный выбор).</div>
-    <div>2) Нажмите «Попросить разрешение на прокрутку/масштаб» — Chromium покажет системный поп-ап, как в Meet.</div>
-    <div>3) После разрешения кнопки «Масштаб/Прокрутка» управляют <u>самой демонстрируемой вкладкой</u>. Если недоступно — работает локальный превью-масштаб.</div>
-</div>
+<h1>Вызов системного поп-апа «Прокрутка и изменение масштаба вкладки»</h1>
+<p>1) Нажмите <b>«Начать (вкладка)»</b> и выберите <b>вкладку Chrome</b>.<br>
+    2) Нажмите <b>«Попросить разрешение…»</b> — должен появиться стандартный поп-ап Chromium.</p>
 
-<div class="panel row">
-    <button id="startSync">Начать шаринг (вкладка)</button>
-    <button id="startDelayed">Начать шаринг (с задержкой 0ms)</button>
-    <button id="stop" disabled>Остановить</button>
-    <span class="perm" id="capState">controller: …</span>
-</div>
+<p>
+    <button id="start">Начать (вкладка)</button>
+    <button id="ask" disabled>Попросить разрешение (показать поп-ап)</button>
+    <button id="stop" disabled>Стоп</button>
+</p>
 
-<div class="panel row">
-    <button id="requestCtl" disabled>Попросить разрешение на прокрутку/масштаб</button>
-    <button id="zoomIn" disabled>Масштаб +</button>
-    <button id="zoomOut" disabled>Масштаб −</button>
-    <button id="zoomReset" disabled>Сброс масштаба</button>
-    <button id="scrollUp" disabled>Прокрутка ↑</button>
-    <button id="scrollDown" disabled>Прокрутка ↓</button>
-</div>
+<video id="v" autoplay playsinline muted></video>
 
-<div id="stage"><video id="preview" autoplay playsinline muted></video></div>
-
-<h3 style="margin-top:18px">Логи</h3>
+<h3>Логи</h3>
 <div id="log" class="log"></div>
 
 <script>
     'use strict';
     const $ = id => document.getElementById(id);
-    const logEl = $('log'), vid = $('preview');
+    const logEl = $('log'), vid = $('v');
+
     let stream = null;
-    let controller = null;        // CaptureController, если поддерживается
-    let hasCtlPermission = false; // получили ли разрешение на управление вкладкой
-    let capturedIsTab = false;    // выбрана ли вкладка
+    let controller = null;           // один экземпляр на страницу
+    let capturedIsTab = false;
+    let starting = false;            // чтобы не было гонок
 
-    // локальный fallback для превью (если нет прав/поддержки)
-    const localView = { scale: 1 };
-    function applyLocalTransform() {
-      vid.style.transform = `scale(${localView.scale})`;
-    }
-    function log(...a){
-      const s=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ');
-      logEl.textContent+=s+'\n'; logEl.scrollTop=logEl.scrollHeight; console.log(...a);
-    }
-    function updateCapState() {
-      const supported = 'CaptureController' in window;
-      $('capState').textContent = `controller: supported=${supported}, tab=${capturedIsTab}, permission=${hasCtlPermission}`;
-    }
-    function setRunning(r){ $('startSync').disabled=r; $('startDelayed').disabled=r; $('stop').disabled=!r; }
-    function enableCtlButtons(on){
-      ['requestCtl','zoomIn','zoomOut','zoomReset','scrollUp','scrollDown'].forEach(id => $(id).disabled = !on);
-    }
+    function log(...a){ const s=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' '); logEl.textContent+=s+'\n'; logEl.scrollTop=logEl.scrollHeight; console.log(...a); }
+    function setRun(r){ $('start').disabled=r; $('ask').disabled=!r || !capturedIsTab; $('stop').disabled=!r; }
 
-    function attachStream(s){
-      vid.srcObject = s; vid.play().catch(()=>{});
-      const v = s.getVideoTracks()[0];
-      if (v) {
-        v.onended = () => { log('Видео трек завершён'); stop(); };
-        const st = v.getSettings?.() || {};
-        capturedIsTab = (st.displaySurface === 'browser'); // важно для контролов
-        log('Video settings:', st);
-      }
-      const a = s.getAudioTracks()[0];
-      if (!a) log('Аудио-трек отсутствует. Для звука вкладки включите чекбокс в диалоге Chromium.');
-      updateCapState();
+    function sanity(){
+      const httpsOK = location.protocol==='https:' || location.hostname==='localhost';
+      log('https/localhost:', httpsOK);
+      const ccOK = 'CaptureController' in window;
+      log('CaptureController in window:', ccOK);
+      try {
+        const allowed = document.permissionsPolicy?.allowsFeature?.('captured-surface-control');
+        log('Permissions-Policy captured-surface-control allowed:', allowed);
+      } catch(e) { /* no-op */ }
+      log('UA:', navigator.userAgent);
     }
+    sanity();
 
-    async function startCore(){
+    async function start(){
+      if (starting) return;
+      starting = true;
       try{
-        const httpsOK = location.protocol === 'https:' || location.hostname === 'localhost';
-        if (!httpsOK) log('ВНИМАНИЕ: нужен HTTPS или http://localhost для getDisplayMedia.');
-
+        if (!('CaptureController' in window)) {
+          log('❌ CaptureController недоступен — обновите Chrome/Chromium. Поп-ап невозможен.');
+        }
+        // ВАЖНО: создаём контроллер ДО вызова getDisplayMedia и переиспользуем его
         controller = ('CaptureController' in window) ? new window.CaptureController() : null;
 
         const constraints = {
           video: {
-            cursor:'always',
-            displaySurface:'browser',
-            // Chromium hints (игнорируются, если не поддерживаются):
+            displaySurface: 'browser',   // намёк на вкладку
+            cursor: 'always',
+            ...(controller ? { controller } : {}),
+            // Подсказки Chromium (безопасно игнорируются, если не поддерживаются):
             // @ts-ignore
-            preferCurrentTab:true,
+            preferCurrentTab: true,
             // @ts-ignore
-            surfaceSwitching:'include',
-            // передаём контроллер (если доступен) — это важно:
-            ...(controller ? { controller } : {})
+            surfaceSwitching: 'include'
           },
-          audio:true
+          audio: true
         };
 
         const s = await navigator.mediaDevices.getDisplayMedia(constraints);
-        stream = s; attachStream(s); setRunning(true); log('Захват запущен.');
+        stream = s; vid.srcObject = s; await vid.play().catch(()=>{});
+        const vt = s.getVideoTracks()[0];
+        const st = vt?.getSettings?.() || {};
+        capturedIsTab = (st.displaySurface === 'browser');
+        log('Получен стрим. displaySurface =', st.displaySurface);
+        if (!capturedIsTab) {
+          log('⚠️ Выбраны «Окно» или «Экран». Для поп-апа нужно выбрать «Вкладка Chrome».');
+        }
+        vt.onended = () => { log('Видео трек завершён'); stop(); };
+        setRun(true);
+      } catch(e){
+        log('getDisplayMedia:', e.name, e.message);
+        if (e.name==='TypeError') log('Нужен HTTPS или http://localhost.');
+      } finally {
+        starting = false;
+      }
+    }
 
-        // Разрешить пользователю попытаться запросить контроль:
-        $('requestCtl').disabled = !controller;
-        enableCtlButtons(controller && capturedIsTab); // сами действия станут активны после получения разрешения
-        applyLocalTransform();
-      }catch(e){
-        log('getDisplayMedia reject:', e.name+':', e.message);
-        if (e.name==='NotAllowedError') log('Подсказка: нужен пользовательский клик, либо политика/настройки блокируют доступ.');
-        if (e.name==='TypeError') log('Подсказка: нужен HTTPS или http://localhost.');
-      }finally{
-        updateCapState();
+    async function ask(){
+      // Если пользователь нажал слишком рано — сначала стартуем захват, затем повторим запрос.
+      if (!stream) {
+        log('ℹ️ Захват ещё не запущен — запускаем автоматически перед запросом разрешения…');
+        await start();
+      }
+      if (!stream) { log('❌ Нет активного захвата — запрос невозможен.'); return; }
+      if (!controller) { log('❌ Нет контроллера — он должен быть передан в getDisplayMedia.'); return; }
+      if (!capturedIsTab) { log('❌ Не вкладка — Chromium не покажет поп-ап. Перезапустите и выберите вкладку.'); return; }
+
+      try {
+        // В ответ на клик пользователя: вызываем контролируемое действие.
+        if (controller.increaseZoomLevel) {
+          await controller.increaseZoomLevel();   // ← здесь должен появиться поп-ап
+          log('increaseZoomLevel(): OK (если был поп-ап — подтвердите).');
+        } else {
+          log('increaseZoomLevel отсутствует — пробуем forwardWheel');
+        }
+        if (controller.forwardWheel) {
+          await controller.forwardWheel({ deltaY: 120 });
+          log('forwardWheel(): OK');
+        }
+      } catch(e){
+        log('Запрос управления вкладкой отклонён/ошибка:', e.name, e.message);
+        if (e.name === 'InvalidStateError') {
+          log('▶ Причина обычно в том, что контроллер не прикреплён. Убедитесь, что КОНТРОЛЛЕР был передан в getDisplayMedia и захват активен.');
+        }
       }
     }
 
     function stop(){
       try{ if (stream) stream.getTracks().forEach(t=>t.stop()); if (vid.srcObject) vid.srcObject=null; }
-      finally{
-        stream=null; setRunning(false);
-        hasCtlPermission=false; capturedIsTab=false;
-        enableCtlButtons(false); $('requestCtl').disabled = true;
-        updateCapState(); log('Шаринг остановлен.');
-      }
+      finally{ stream=null; capturedIsTab=false; setRun(false); log('Остановлено.'); }
     }
 
-    /* ===== Captured Surface Control (permission trigger + actions) =====
-       Замечание: точные имена методов могут отличаться в старых/будущих версиях.
-       Мы вызываем их с optional chaining + try/catch и логируем, чтобы было понятно,
-       поддерживается ли окружением.
-    */
-    async function requestControllerPermission(){
-      if (!controller) { log('Контроллер не поддерживается в этом браузере.'); return; }
-      if (!capturedIsTab) { log('Выберите именно вкладку (а не окно/экран), иначе управление недоступно.'); return; }
-
-      try {
-        // Любой контролируемый жест должен запрашивать разрешение.
-        // Вызываем лёгкое действие: увеличить и сразу сбросить зум.
-        await controller.increaseZoomLevel?.();     // ← здесь Chromium покажет системный поп-ап
-        await controller.resetZoomLevel?.();
-        hasCtlPermission = true;
-        enableCtlButtons(true);
-        log('Разрешение на управление вкладкой получено (zoom/scroll).');
-      } catch (e) {
-        log('Не удалось запросить управление вкладкой:', e.name+':', e.message);
-      } finally {
-        updateCapState();
-      }
-    }
-
-    async function ctlZoomIn(){
-      if (hasCtlPermission && controller?.increaseZoomLevel) {
-        try { await controller.increaseZoomLevel(); } catch(e){ log('increaseZoomLevel:', e.name, e.message); }
-      } else {
-        // fallback: локальный превью масштаб
-        localView.scale = Math.min(3, localView.scale + 0.12); applyLocalTransform();
-      }
-    }
-    async function ctlZoomOut(){
-      if (hasCtlPermission && controller?.decreaseZoomLevel) {
-        try { await controller.decreaseZoomLevel(); } catch(e){ log('decreaseZoomLevel:', e.name, e.message); }
-      } else {
-        localView.scale = Math.max(1, localView.scale - 0.12); applyLocalTransform();
-      }
-    }
-    async function ctlZoomReset(){
-      if (hasCtlPermission && controller?.resetZoomLevel) {
-        try { await controller.resetZoomLevel(); } catch(e){ log('resetZoomLevel:', e.name, e.message); }
-      } else {
-        localView.scale = 1; applyLocalTransform();
-      }
-    }
-    async function ctlScroll(deltaY){
-      if (hasCtlPermission && controller?.forwardWheel) {
-        try {
-          // Минимальный «жест»: прокрутка вниз/вверх фиксированным шагом.
-          // forwardWheel обычно принимает число пикселей/строк; для совместимости вызываем с объектом, если поддерживается.
-          await controller.forwardWheel?.({ deltaY });
-        } catch(e){ log('forwardWheel:', e.name, e.message); }
-      } else {
-        log('Прокрутка вкладки недоступна — нет разрешения или поддержки API.');
-      }
-    }
-
-    /* ===== UI wiring ===== */
-    $('startSync').addEventListener('click', () => { log('=== Старт (синхронно) ==='); startCore(); });
-    $('startDelayed').addEventListener('click', () => { log('=== Старт (с задержкой) ==='); setTimeout(()=>startCore(),0); });
+    $('start').addEventListener('click', start);
+    $('ask').addEventListener('click', ask);
     $('stop').addEventListener('click', stop);
-
-    $('requestCtl').addEventListener('click', requestControllerPermission);
-    $('zoomIn').addEventListener('click', ctlZoomIn);
-    $('zoomOut').addEventListener('click', ctlZoomOut);
-    $('zoomReset').addEventListener('click', ctlZoomReset);
-    $('scrollUp').addEventListener('click', () => ctlScroll(-120));
-    $('scrollDown').addEventListener('click', () => ctlScroll(120));
-
-    /* Diagnostics */
-    (function supportReport(){
-      const info = {
-        https: location.protocol === 'https:' || location.hostname === 'localhost',
-        getDisplayMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
-        CaptureController: 'CaptureController' in window,
-        ua: navigator.userAgent
-      };
-      log('Сводка:', JSON.stringify(info,null,2));
-      if (!info.https) log('ВНИМАНИЕ: нужен HTTPS или http://localhost.');
-    })();
-    updateCapState();
-    applyLocalTransform();
 </script>
-</body>
 </html>
