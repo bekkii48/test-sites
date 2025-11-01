@@ -2,7 +2,7 @@
 <html lang="ru">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pop-up тест: «Прокрутка/масштаб вкладки»</title>
+<title>Поп-ап «Прокрутка/масштаб вкладки» — фикс</title>
 <style>
     body{font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:24px}
     button{padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
@@ -12,8 +12,8 @@
 </style>
 
 <h1>Вызов системного поп-апа «Прокрутка и изменение масштаба вкладки»</h1>
-<p>1) Нажмите <b>«Начать (вкладка)»</b> и выберите <b>вкладку Chrome</b>.<br>
-    2) Нажмите <b>«Попросить разрешение…»</b> — должен появиться стандартный поп-ап Chromium.</p>
+<p>1) <b>Начать (вкладка)</b> → выберите <b>Вкладка Chrome</b>.<br>
+    2) <b>Попросить разрешение…</b> → должен появиться поп-ап Chromium.</p>
 
 <p>
     <button id="start">Начать (вкладка)</button>
@@ -30,44 +30,33 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const logEl = $('log'), vid = $('v');
-
-    let stream = null;
-    let controller = null;           // один экземпляр на страницу
-    let capturedIsTab = false;
-    let starting = false;            // чтобы не было гонок
+    let stream=null, controller=null, capturedIsTab=false;
 
     function log(...a){ const s=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' '); logEl.textContent+=s+'\n'; logEl.scrollTop=logEl.scrollHeight; console.log(...a); }
     function setRun(r){ $('start').disabled=r; $('ask').disabled=!r || !capturedIsTab; $('stop').disabled=!r; }
 
-    function sanity(){
-      const httpsOK = location.protocol==='https:' || location.hostname==='localhost';
-      log('https/localhost:', httpsOK);
-      const ccOK = 'CaptureController' in window;
-      log('CaptureController in window:', ccOK);
-      try {
-        const allowed = document.permissionsPolicy?.allowsFeature?.('captured-surface-control');
-        log('Permissions-Policy captured-surface-control allowed:', allowed);
-      } catch(e) { /* no-op */ }
+    (function sanity(){
+      log('HTTPS/localhost:', location.protocol==='https:' || location.hostname==='localhost');
+      log('CaptureController in window:', 'CaptureController' in window);
+      try { log('Permissions-Policy captured-surface-control allowed:', document.permissionsPolicy?.allowsFeature?.('captured-surface-control')); } catch {}
       log('UA:', navigator.userAgent);
-    }
-    sanity();
+    })();
 
     async function start(){
-      if (starting) return;
-      starting = true;
+      logEl.textContent = ''; // clear
       try{
         if (!('CaptureController' in window)) {
-          log('❌ CaptureController недоступен — обновите Chrome/Chromium. Поп-ап невозможен.');
+          log('❌ Нет CaptureController — обновите Chrome/Chromium (нужно 136+).');
         }
-        // ВАЖНО: создаём контроллер ДО вызова getDisplayMedia и переиспользуем его
-        controller = ('CaptureController' in window) ? new window.CaptureController() : null;
+        controller = ('CaptureController' in window) ? new CaptureController() : null;
 
-        const constraints = {
+        const streamConstraints = {
+          // ⬇️ controller MUST be top-level (NOT inside video)
+          ...(controller ? { controller } : {}),
           video: {
-            displaySurface: 'browser',   // намёк на вкладку
+            displaySurface: 'browser',  // prefer a tab
             cursor: 'always',
-            ...(controller ? { controller } : {}),
-            // Подсказки Chromium (безопасно игнорируются, если не поддерживаются):
+            // optional hints:
             // @ts-ignore
             preferCurrentTab: true,
             // @ts-ignore
@@ -76,58 +65,51 @@
           audio: true
         };
 
-        const s = await navigator.mediaDevices.getDisplayMedia(constraints);
-        stream = s; vid.srcObject = s; await vid.play().catch(()=>{});
-        const vt = s.getVideoTracks()[0];
+        stream = await navigator.mediaDevices.getDisplayMedia(streamConstraints);
+        vid.srcObject = stream; await vid.play().catch(()=>{});
+        const vt = stream.getVideoTracks()[0];
         const st = vt?.getSettings?.() || {};
         capturedIsTab = (st.displaySurface === 'browser');
-        log('Получен стрим. displaySurface =', st.displaySurface);
-        if (!capturedIsTab) {
-          log('⚠️ Выбраны «Окно» или «Экран». Для поп-апа нужно выбрать «Вкладка Chrome».');
-        }
+        log('displaySurface =', st.displaySurface);
+        if (!capturedIsTab) log('⚠️ Выбраны «Окно/Экран». Для поп-апа нужна «Вкладка Chrome».');
+
         vt.onended = () => { log('Видео трек завершён'); stop(); };
         setRun(true);
-      } catch(e){
+      } catch (e) {
         log('getDisplayMedia:', e.name, e.message);
         if (e.name==='TypeError') log('Нужен HTTPS или http://localhost.');
-      } finally {
-        starting = false;
       }
     }
 
     async function ask(){
-      // Если пользователь нажал слишком рано — сначала стартуем захват, затем повторим запрос.
-      if (!stream) {
-        log('ℹ️ Захват ещё не запущен — запускаем автоматически перед запросом разрешения…');
-        await start();
-      }
-      if (!stream) { log('❌ Нет активного захвата — запрос невозможен.'); return; }
-      if (!controller) { log('❌ Нет контроллера — он должен быть передан в getDisplayMedia.'); return; }
-      if (!capturedIsTab) { log('❌ Не вкладка — Chromium не покажет поп-ап. Перезапустите и выберите вкладку.'); return; }
+      if (!stream) { log('❌ Нет активного захвата. Нажмите «Начать (вкладка)».'); return; }
+      if (!controller) { log('❌ Контроллер не создан/не передан в getDisplayMedia.'); return; }
+      if (!capturedIsTab) { log('❌ Не вкладка — поп-ап не появится. Перезапустите и выберите вкладку.'); return; }
 
       try {
-        // В ответ на клик пользователя: вызываем контролируемое действие.
-        if (controller.increaseZoomLevel) {
-          await controller.increaseZoomLevel();   // ← здесь должен появиться поп-ап
-          log('increaseZoomLevel(): OK (если был поп-ап — подтвердите).');
-        } else {
-          log('increaseZoomLevel отсутствует — пробуем forwardWheel');
-        }
+        // Any of these first calls (on user click) should trigger the permission popup:
+        await controller.increaseZoomLevel();        // triggers popup the first time
+        log('increaseZoomLevel(): OK (если был поп-ап — подтвердите)');
+
+        // Start forwarding wheel events from our preview to the captured tab:
         if (controller.forwardWheel) {
-          await controller.forwardWheel({ deltaY: 120 });
-          log('forwardWheel(): OK');
+          await controller.forwardWheel(vid);       // correct signature: element | null
+          log('forwardWheel(vid): forwarding enabled');
         }
-      } catch(e){
-        log('Запрос управления вкладкой отклонён/ошибка:', e.name, e.message);
+      } catch (e) {
+        log('Запрос управления вкладкой: ', e.name, e.message);
         if (e.name === 'InvalidStateError') {
-          log('▶ Причина обычно в том, что контроллер не прикреплён. Убедитесь, что КОНТРОЛЛЕР был передан в getDisplayMedia и захват активен.');
+          log('▶ Это бывает, если controller НЕ прикреплён. Проверьте, что controller был передан ТОЛЬКО на верхнем уровне аргумента getDisplayMedia.');
+        }
+        if (e.name === 'NotAllowedError') {
+          log('▶ Политика или пользователь запретили доступ (проверьте Permissions-Policy и iframe allow).');
         }
       }
     }
 
     function stop(){
       try{ if (stream) stream.getTracks().forEach(t=>t.stop()); if (vid.srcObject) vid.srcObject=null; }
-      finally{ stream=null; capturedIsTab=false; setRun(false); log('Остановлено.'); }
+      finally{ stream=null; controller=null; capturedIsTab=false; setRun(false); log('Остановлено.'); }
     }
 
     $('start').addEventListener('click', start);
