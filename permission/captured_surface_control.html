@@ -3,279 +3,224 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Диагностика шаринга экрана (Chrome/Chromium)</title>
+    <title>Шаринг вкладки + запрос «прокрутка/масштаб» (Chromium)</title>
     <style>
         :root { --card:#fff; --muted:#667; --border:#e6e6e6; --bg:#f6f7fb; }
         body { font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; background: var(--bg); color:#111; }
         h1 { font-size: 20px; margin: 0 0 12px; }
-        .note, .warn { margin: 8px 0 16px; color: var(--muted); }
-        .warn { color:#b40000; }
         .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-        button, input[type="range"] { cursor:pointer; }
-        button { padding: 9px 14px; border-radius: 10px; border:1px solid var(--border); background:#fff; box-shadow:0 1px 0 rgba(0,0,0,.04); }
+        button { padding: 9px 14px; border-radius: 10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
         button:disabled { opacity:.5; cursor:default; }
-        .panel { background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 14px; }
-        #stageWrap { margin-top: 12px; }
-        #stage { position: relative; width: min(80vw, 980px); height: clamp(220px, 45vh, 560px); background:#000; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
-        #preview { position:absolute; inset:0; object-fit: contain; width:100%; height:100%; transform-origin: center center; }
-        .overlayTip { position:absolute; right:10px; bottom:10px; background:rgba(0,0,0,.55); color:#fff; font-size:12px; padding:6px 8px; border-radius:8px; }
+        .panel { background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+        #stage { position: relative; width: min(80vw, 980px); height: clamp(240px, 48vh, 580px); background:#000; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
+        #preview { position:absolute; inset:0; object-fit: contain; width:100%; height:100%; transform-origin:center; }
         .log { white-space: pre-wrap; background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 12px; margin-top: 12px; min-height: 120px; }
-        .kv { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-        label[for] { user-select:none; }
-        .spacer { flex:1 1 auto; }
+        .perm { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f2f4f8; border:1px solid #e6e6e6; padding:6px 8px; border-radius:10px; }
     </style>
 </head>
 <body>
-<h1>Диагностика и превью «Шаринг вкладки как в Google Meet»</h1>
+<h1>Как в Meet: запрос «Прокрутка и масштаб вкладки»</h1>
 
-<div class="note panel">
-    1) Нажмите «Начать шаринг (вкладка)» — в Chromium появится окно выбора «Вкладка Chrome / Окно / Весь экран» с чекбоксом «Поделиться звуком».<br>
-    2) После старта ниже появится превью с <b>масштабом</b> (колёсиком/слайдером) и <b>панорамированием</b> мышью, как в Meet.<br>
-    3) Вариант «С задержкой» специально ломает user-activation, чтобы увидеть, как это влияет на показ диалога.
+<div class="panel">
+    <div><b>Шаги:</b></div>
+    <div>1) Нажмите «Начать шаринг (вкладка)» и выберите <u>вкладку браузера</u> (в Chromium появится стандартный выбор).</div>
+    <div>2) Нажмите «Попросить разрешение на прокрутку/масштаб» — Chromium покажет системный поп-ап, как в Meet.</div>
+    <div>3) После разрешения кнопки «Масштаб/Прокрутка» управляют <u>самой демонстрируемой вкладкой</u>. Если недоступно — работает локальный превью-масштаб.</div>
 </div>
 
-<div class="row">
+<div class="panel row">
     <button id="startSync">Начать шаринг (вкладка)</button>
     <button id="startDelayed">Начать шаринг (с задержкой 0ms)</button>
     <button id="stop" disabled>Остановить</button>
-    <div class="spacer"></div>
-    <label class="row" style="gap:6px">
-        Масштаб:
-        <input id="zoomRange" type="range" min="1" max="3" step="0.05" value="1" style="width:180px">
-    </label>
-    <button id="zoomOut">–</button>
-    <button id="zoomReset">100%</button>
-    <button id="zoomIn">+</button>
-    <label class="row" style="gap:6px; margin-left:8px">
-        <input id="panToggle" type="checkbox"> Панорамирование мышью
-    </label>
+    <span class="perm" id="capState">controller: …</span>
 </div>
 
-<div id="stageWrap">
-    <div id="stage">
-        <video id="preview" autoplay playsinline muted></video>
-        <div class="overlayTip" id="overlayTip" hidden>
-            Колёсико — масштаб, перетаскивание — панорама. Двойной щелчок — 100%.
-        </div>
-    </div>
+<div class="panel row">
+    <button id="requestCtl" disabled>Попросить разрешение на прокрутку/масштаб</button>
+    <button id="zoomIn" disabled>Масштаб +</button>
+    <button id="zoomOut" disabled>Масштаб −</button>
+    <button id="zoomReset" disabled>Сброс масштаба</button>
+    <button id="scrollUp" disabled>Прокрутка ↑</button>
+    <button id="scrollDown" disabled>Прокрутка ↓</button>
 </div>
+
+<div id="stage"><video id="preview" autoplay playsinline muted></video></div>
 
 <h3 style="margin-top:18px">Логи</h3>
 <div id="log" class="log"></div>
 
 <script>
     'use strict';
-
     const $ = id => document.getElementById(id);
-    const logEl = $('log');
-    const vid = $('preview');
-    const stage = $('stage');
+    const logEl = $('log'), vid = $('preview');
     let stream = null;
+    let controller = null;        // CaptureController, если поддерживается
+    let hasCtlPermission = false; // получили ли разрешение на управление вкладкой
+    let capturedIsTab = false;    // выбрана ли вкладка
 
-    // state for zoom/pan
-    const state = {
-      scale: 1,
-      tx: 0,   // translate X (px)
-      ty: 0,   // translate Y (px)
-      panning: false,
-      dragStartX: 0,
-      dragStartY: 0,
-      startTx: 0,
-      startTy: 0
-    };
-
-    function log(...a) {
-      const s = a.map(x => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(' ');
-      logEl.textContent += s + '\n';
-      logEl.scrollTop = logEl.scrollHeight;
-      // also to console for devtools
-      console.log(...a);
+    // локальный fallback для превью (если нет прав/поддержки)
+    const localView = { scale: 1 };
+    function applyLocalTransform() {
+      vid.style.transform = `scale(${localView.scale})`;
     }
-    function applyTransform() {
-  vid.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
-  $('zoomRange').value = String(state.scale.toFixed(2));
-  $('zoomReset').textContent = Math.round(state.scale*100) + '%';
-  $('overlayTip').hidden = (state.scale === 1 && state.tx === 0 && state.ty === 0) ? false : false; // always show for now
-}
-
-function setScaleAroundPoint(nextScale, cx, cy) {
-  nextScale = Math.max(1, Math.min(3, nextScale));
-  // zoom around cursor: convert screen point to content coordinates
-  const rect = stage.getBoundingClientRect();
-  const x = cx - rect.left;
-  const y = cy - rect.top;
-  const prevScale = state.scale;
-  // Adjust translate so the point under cursor stays under cursor
-  state.tx = x - (x - state.tx) * (nextScale / prevScale);
-  state.ty = y - (y - state.ty) * (nextScale / prevScale);
-  state.scale = nextScale;
-  constrainPan();
-  applyTransform();
-}
-
-function constrainPan() {
-  // keep video roughly within stage bounds (soft clamp)
-  const rect = stage.getBoundingClientRect();
-  const maxX = (rect.width * (state.scale - 1)) / 2 + 80;
-  const maxY = (rect.height * (state.scale - 1)) / 2 + 80;
-  state.tx = Math.max(-maxX, Math.min(maxX, state.tx));
-  state.ty = Math.max(-maxY, Math.min(maxY, state.ty));
-}
-
-function resetView() {
-  state.scale = 1; state.tx = 0; state.ty = 0; applyTransform();
-}
-
-function setRunning(running) {
-  $('startSync').disabled = running;
-  $('startDelayed').disabled = running;
-  $('stop').disabled = !running;
-}
-
-function attachStream(s) {
-  vid.srcObject = s;
-  vid.play().catch(() => {});
-  const vTrack = s.getVideoTracks()[0];
-  if (vTrack) {
-    vTrack.onended = () => {
-      log('Трек видео остановлен пользователем/системой.');
-      stop();
-    };
-    log('Получен видео-трек. settings=', vTrack.getSettings ? vTrack.getSettings() : null);
-  }
-  const aTrack = s.getAudioTracks()[0];
-  if (aTrack) {
-    log('Получен аудио-трек (таба/системы). settings=', aTrack.getSettings ? aTrack.getSettings() : null);
-  } else {
-    log('Аудио-трек отсутствует. Если нужен звук вкладки — при выборе «Вкладка Chrome» включите чекбокс «Поделиться звуком».');
-  }
-}
-
-async function startCore() {
-  try {
-    log('userActivation.isActive перед вызовом:', navigator.userActivation?.isActive);
-    // ВАЖНО: HTTPS или http://localhost
-    const httpsOK = location.protocol === 'https:' || location.hostname === 'localhost';
-    if (!httpsOK) log('ВНИМАНИЕ: нужен HTTPS или http://localhost для getDisplayMedia.');
-
-    // Подсказки Chromium для выбора вкладки и звука. Нестандартизованные поля просто игнорируются другими браузерами.
-    const constraints = {
-      video: {
-        cursor: 'always',
-        displaySurface: 'browser',     // hint: вкладка браузера
-        // experimentals (Chromium игнорирует, если недоступно):
-        // @ts-ignore
-        preferCurrentTab: true,
-        // @ts-ignore
-        surfaceSwitching: 'include'    // позволить переключение источника во время шаринга (если поддерживается)
-      },
-      audio: true                      // при выборе "Вкладка Chrome" покажется чекбокс "Поделиться звуком"
-    };
-
-    const s = await navigator.mediaDevices.getDisplayMedia(constraints);
-    stream = s;
-    attachStream(s);
-    setRunning(true);
-    resetView();
-    $('overlayTip').hidden = false;
-    log('Захват запущен. Подсказка: наведите курсор на превью и крутите колёсико для масштаба.');
-  } catch (e) {
-    log('getDisplayMedia reject:', e.name + ':', e.message);
-    if (e.name === 'NotAllowedError') {
-      log('Подсказка: возможно, вызов был без пользовательского жеста, либо политика/настройки запрещают показ. Проверьте site settings и корпоративные политики.');
-    } else if (e.name === 'TypeError') {
-      log('Подсказка: нужен HTTPS или http://localhost.');
+    function log(...a){
+      const s=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ');
+      logEl.textContent+=s+'\n'; logEl.scrollTop=logEl.scrollHeight; console.log(...a);
     }
-  }
-}
+    function updateCapState() {
+      const supported = 'CaptureController' in window;
+      $('capState').textContent = `controller: supported=${supported}, tab=${capturedIsTab}, permission=${hasCtlPermission}`;
+    }
+    function setRunning(r){ $('startSync').disabled=r; $('startDelayed').disabled=r; $('stop').disabled=!r; }
+    function enableCtlButtons(on){
+      ['requestCtl','zoomIn','zoomOut','zoomReset','scrollUp','scrollDown'].forEach(id => $(id).disabled = !on);
+    }
 
-function stop() {
-  try {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    if (vid.srcObject) vid.srcObject = null;
-  } finally {
-    stream = null;
-    setRunning(false);
-    log('Шаринг остановлен.');
-  }
-}
-    /* === UI wiring === */
-$('stop').addEventListener('click', stop);
-$('startSync').addEventListener('click', () => { log('=== Старт (синхронно) ==='); startCore(); });
-$('startDelayed').addEventListener('click', () => { log('=== Старт (с задержкой) ==='); setTimeout(() => startCore(), 0); });
+    function attachStream(s){
+      vid.srcObject = s; vid.play().catch(()=>{});
+      const v = s.getVideoTracks()[0];
+      if (v) {
+        v.onended = () => { log('Видео трек завершён'); stop(); };
+        const st = v.getSettings?.() || {};
+        capturedIsTab = (st.displaySurface === 'browser'); // важно для контролов
+        log('Video settings:', st);
+      }
+      const a = s.getAudioTracks()[0];
+      if (!a) log('Аудио-трек отсутствует. Для звука вкладки включите чекбокс в диалоге Chromium.');
+      updateCapState();
+    }
 
-$('zoomRange').addEventListener('input', e => {
-  const next = parseFloat(e.target.value);
-  // zoom around center
-  const rect = stage.getBoundingClientRect();
-  setScaleAroundPoint(next, rect.left + rect.width/2, rect.top + rect.height/2);
-});
-$('zoomIn').addEventListener('click', () => {
-  const rect = stage.getBoundingClientRect();
-  setScaleAroundPoint(state.scale + 0.15, rect.left + rect.width/2, rect.top + rect.height/2);
-});
-$('zoomOut').addEventListener('click', () => {
-  const rect = stage.getBoundingClientRect();
-  setScaleAroundPoint(state.scale - 0.15, rect.left + rect.width/2, rect.top + rect.height/2);
-});
-$('zoomReset').addEventListener('click', resetView);
+    async function startCore(){
+      try{
+        const httpsOK = location.protocol === 'https:' || location.hostname === 'localhost';
+        if (!httpsOK) log('ВНИМАНИЕ: нужен HTTPS или http://localhost для getDisplayMedia.');
 
-stage.addEventListener('wheel', (ev) => {
-  ev.preventDefault();
-  const delta = -Math.sign(ev.deltaY) * 0.12;
-  setScaleAroundPoint(state.scale + delta, ev.clientX, ev.clientY);
-}, { passive:false });
+        controller = ('CaptureController' in window) ? new window.CaptureController() : null;
 
-let dragging = false;
-stage.addEventListener('mousedown', (ev) => {
-  if (!$('panToggle').checked) return;
-  dragging = true;
-  state.dragStartX = ev.clientX;
-  state.dragStartY = ev.clientY;
-  state.startTx = state.tx;
-  state.startTy = state.ty;
-  stage.style.cursor = 'grabbing';
-});
-window.addEventListener('mousemove', (ev) => {
-  if (!dragging) return;
-  state.tx = state.startTx + (ev.clientX - state.dragStartX);
-  state.ty = state.startTy + (ev.clientY - state.dragStartY);
-  constrainPan();
-  applyTransform();
-});
-window.addEventListener('mouseup', () => {
-  if (dragging) {
-    dragging = false;
-    stage.style.cursor = '';
-  }
-});
-stage.addEventListener('dblclick', () => resetView());
+        const constraints = {
+          video: {
+            cursor:'always',
+            displaySurface:'browser',
+            // Chromium hints (игнорируются, если не поддерживаются):
+            // @ts-ignore
+            preferCurrentTab:true,
+            // @ts-ignore
+            surfaceSwitching:'include',
+            // передаём контроллер (если доступен) — это важно:
+            ...(controller ? { controller } : {})
+          },
+          audio:true
+        };
 
-function supportReport() {
-  const info = {
-    https: location.protocol === 'https:' || location.hostname === 'localhost',
-    topLevel: window.top === window,
-    inIframe: window.top !== window,
-    sandboxed: (() => { try { return window.frameElement?.sandbox?.length > 0; } catch { return false; } })(),
-    getDisplayMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
-    userActivation: navigator.userActivation ? {
-      isActive: navigator.userActivation.isActive,
-      hasBeenActive: navigator.userActivation.hasBeenActive
-    } : null,
-    permissionsPolicyDisplayCapture: (() => { try { return document.permissionsPolicy?.allowsFeature?.('display-capture'); } catch { return 'n/a'; } })(),
-    permissionsPolicyCapturedSurface: (() => { try { return document.permissionsPolicy?.allowsFeature?.('captured-surface-control'); } catch { return 'n/a'; } })(),
-    ua: navigator.userAgent
-  };
-  log('Сводка:', JSON.stringify(info, null, 2));
-  if (!info.https) {
-    log('ВНИМАНИЕ: нужен HTTPS или http://localhost для getDisplayMedia.');
-  }
-  if (info.inIframe) {
-    log('ВНИМАНИЕ: страница во фрейме. Нужен allow="display-capture; microphone; camera; captured-surface-control" у iframe. Sandbox может блокировать.');
-  }
-}
-supportReport();
-applyTransform();
+        const s = await navigator.mediaDevices.getDisplayMedia(constraints);
+        stream = s; attachStream(s); setRunning(true); log('Захват запущен.');
+
+        // Разрешить пользователю попытаться запросить контроль:
+        $('requestCtl').disabled = !controller;
+        enableCtlButtons(controller && capturedIsTab); // сами действия станут активны после получения разрешения
+        applyLocalTransform();
+      }catch(e){
+        log('getDisplayMedia reject:', e.name+':', e.message);
+        if (e.name==='NotAllowedError') log('Подсказка: нужен пользовательский клик, либо политика/настройки блокируют доступ.');
+        if (e.name==='TypeError') log('Подсказка: нужен HTTPS или http://localhost.');
+      }finally{
+        updateCapState();
+      }
+    }
+
+    function stop(){
+      try{ if (stream) stream.getTracks().forEach(t=>t.stop()); if (vid.srcObject) vid.srcObject=null; }
+      finally{
+        stream=null; setRunning(false);
+        hasCtlPermission=false; capturedIsTab=false;
+        enableCtlButtons(false); $('requestCtl').disabled = true;
+        updateCapState(); log('Шаринг остановлен.');
+      }
+    }
+
+    /* ===== Captured Surface Control (permission trigger + actions) =====
+       Замечание: точные имена методов могут отличаться в старых/будущих версиях.
+       Мы вызываем их с optional chaining + try/catch и логируем, чтобы было понятно,
+       поддерживается ли окружением.
+    */
+    async function requestControllerPermission(){
+      if (!controller) { log('Контроллер не поддерживается в этом браузере.'); return; }
+      if (!capturedIsTab) { log('Выберите именно вкладку (а не окно/экран), иначе управление недоступно.'); return; }
+
+      try {
+        // Любой контролируемый жест должен запрашивать разрешение.
+        // Вызываем лёгкое действие: увеличить и сразу сбросить зум.
+        await controller.increaseZoomLevel?.();     // ← здесь Chromium покажет системный поп-ап
+        await controller.resetZoomLevel?.();
+        hasCtlPermission = true;
+        enableCtlButtons(true);
+        log('Разрешение на управление вкладкой получено (zoom/scroll).');
+      } catch (e) {
+        log('Не удалось запросить управление вкладкой:', e.name+':', e.message);
+      } finally {
+        updateCapState();
+      }
+    }
+
+    async function ctlZoomIn(){
+      if (hasCtlPermission && controller?.increaseZoomLevel) {
+        try { await controller.increaseZoomLevel(); } catch(e){ log('increaseZoomLevel:', e.name, e.message); }
+      } else {
+        // fallback: локальный превью масштаб
+        localView.scale = Math.min(3, localView.scale + 0.12); applyLocalTransform();
+      }
+    }
+    async function ctlZoomOut(){
+      if (hasCtlPermission && controller?.decreaseZoomLevel) {
+        try { await controller.decreaseZoomLevel(); } catch(e){ log('decreaseZoomLevel:', e.name, e.message); }
+      } else {
+        localView.scale = Math.max(1, localView.scale - 0.12); applyLocalTransform();
+      }
+    }
+    async function ctlZoomReset(){
+      if (hasCtlPermission && controller?.resetZoomLevel) {
+        try { await controller.resetZoomLevel(); } catch(e){ log('resetZoomLevel:', e.name, e.message); }
+      } else {
+        localView.scale = 1; applyLocalTransform();
+      }
+    }
+    async function ctlScroll(deltaY){
+      if (hasCtlPermission && controller?.forwardWheel) {
+        try {
+          // Минимальный «жест»: прокрутка вниз/вверх фиксированным шагом.
+          // forwardWheel обычно принимает число пикселей/строк; для совместимости вызываем с объектом, если поддерживается.
+          await controller.forwardWheel?.({ deltaY });
+        } catch(e){ log('forwardWheel:', e.name, e.message); }
+      } else {
+        log('Прокрутка вкладки недоступна — нет разрешения или поддержки API.');
+      }
+    }
+
+    /* ===== UI wiring ===== */
+    $('startSync').addEventListener('click', () => { log('=== Старт (синхронно) ==='); startCore(); });
+    $('startDelayed').addEventListener('click', () => { log('=== Старт (с задержкой) ==='); setTimeout(()=>startCore(),0); });
+    $('stop').addEventListener('click', stop);
+
+    $('requestCtl').addEventListener('click', requestControllerPermission);
+    $('zoomIn').addEventListener('click', ctlZoomIn);
+    $('zoomOut').addEventListener('click', ctlZoomOut);
+    $('zoomReset').addEventListener('click', ctlZoomReset);
+    $('scrollUp').addEventListener('click', () => ctlScroll(-120));
+    $('scrollDown').addEventListener('click', () => ctlScroll(120));
+
+    /* Diagnostics */
+    (function supportReport(){
+      const info = {
+        https: location.protocol === 'https:' || location.hostname === 'localhost',
+        getDisplayMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
+        CaptureController: 'CaptureController' in window,
+        ua: navigator.userAgent
+      };
+      log('Сводка:', JSON.stringify(info,null,2));
+      if (!info.https) log('ВНИМАНИЕ: нужен HTTPS или http://localhost.');
+    })();
+    updateCapState();
+    applyLocalTransform();
 </script>
 </body>
 </html>
