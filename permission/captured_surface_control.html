@@ -1,86 +1,146 @@
 <!doctype html>
 <html lang="ru">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Диагностика шаринга экрана (Chrome)</title>
-<style> body { font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; } button { padding: 9px 14px; margin-right: 8px; cursor: pointer; } video { display: block; width: min(72vw, 960px); border: 1px solid #ccc; border-radius: 8px; margin-top: 12px; } .log { white-space: pre-wrap; background: #f7f7f9; border: 1px solid #eee; border-radius: 8px; padding: 8px; margin-top: 12px; min-height: 120px; } .note { color:#333; margin: 8px 0; } .kv { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; } </style>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Диагностика шаринга экрана (Chrome)</title>
+    <style>
+        body { font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+        button { padding: 9px 14px; margin-right: 8px; cursor: pointer; }
+        video { display: block; width: min(72vw, 960px); border: 1px solid #ccc; border-radius: 8px; margin-top: 12px; }
+        .log { white-space: pre-wrap; background: #f7f7f9; border: 1px solid #eee; border-radius: 8px; padding: 8px; margin-top: 12px; min-height: 120px; }
+        .note { color:#333; margin: 8px 0; }
+        .kv { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    </style>
+</head>
+<body>
 <h1>Диагностика «Начать шаринг»</h1>
-<div class="note"> 1) Нажмите «Начать шаринг (синхронно)».<br> 2) Если окно выбора экрана не открылось, смотрите логи ниже — они подскажут причину (user activation, iframe, политика).<br> 3) Для сравнения есть «Начать шаринг (с задержкой)» — он специально ломает user activation. </div>
-<p> <button id="startSync">Начать шаринг (синхронно)</button> <button id="startDelayed">Начать шаринг (с задержкой 0ms)</button> <button id="stop" disabled>Остановить</button> </p>
+<div class="note">
+    1) Нажмите «Начать шаринг (синхронно)».<br>
+    2) Если окно выбора экрана не открылось, смотрите логи ниже — они подскажут причину (user activation, iframe, политика).<br>
+    3) Для сравнения есть «Начать шаринг (с задержкой)» — он специально ломает user activation.
+</div>
+
+<p>
+    <button id="startSync">Начать шаринг (синхронно)</button>
+    <button id="startDelayed">Начать шаринг (с задержкой 0ms)</button>
+    <button id="stop" disabled>Остановить</button>
+</p>
+
 <video id="preview" autoplay playsinline muted></video>
+
 <h3>Логи</h3>
 <div id="log" class="log"></div>
+
 <script>
     'use strict';
-const $ = id => document.getElementById(id);
-const logEl = $('log');
-const vid = $('preview');
-let stream = null;
 
-function log(...a) {
-    const s = a.join(' ');
-    logEl.textContent += s + '\n';
-    console.log(...a);
-}
+    const $ = id => document.getElementById(id);
+    const logEl = $('log');
+    const vid = $('preview');
+    let stream = null;
 
-function supportReport() {
-    const info = {
+    function log(...a) {
+      const s = a.join(' ');
+      logEl.textContent += s + '\n';
+      console.log(...a);
+    }
+
+    function supportReport() {
+      const info = {
         https: location.protocol === 'https:' || location.hostname === 'localhost',
         topLevel: window.top === window,
         inIframe: window.top !== window,
         sandboxed: (() => {
-            try {
-                return window.frameElement?.sandbox?.length > 0;
-            } catch {
-                return false;
-            }
+          try { return window.frameElement?.sandbox?.length > 0; } catch { return false; }
         })(),
         getDisplayMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
         userActivation: navigator.userActivation ? {
-            isActive: navigator.userActivation.isActive,
-            hasBeenActive: navigator.userActivation.hasBeenActive
+          isActive: navigator.userActivation.isActive,
+          hasBeenActive: navigator.userActivation.hasBeenActive
         } : null,
         permissionsPolicyDisplayCapture: (() => {
-            try {
-                return document.permissionsPolicy?.allowsFeature?.('display-capture');
-            } catch {
-                return 'n/a';
-            }
+          try { return document.permissionsPolicy?.allowsFeature?.('display-capture'); } catch { return 'n/a'; }
         })(),
         permissionsPolicyCapturedSurface: (() => {
-            try {
-                return document.permissionsPolicy?.allowsFeature?.('captured-surface-control');
-            } catch {
-                return 'n/a';
-            }
+          try { return document.permissionsPolicy?.allowsFeature?.('captured-surface-control'); } catch { return 'n/a'; }
         })(),
         ua: navigator.userAgent
-    };
-    log('Сводка:', JSON.stringify(info, null, 2));
-    if (info.inIframe) {
+      };
+      log('Сводка:', JSON.stringify(info, null, 2));
+      if (!info.https) {
+        log('ВНИМАНИЕ: нужен HTTPS или http://localhost для getDisplayMedia.');
+      }
+      if (info.inIframe) {
         log('ВНИМАНИЕ: страница во фрейме. Для работы нужен allow="display-capture; microphone; camera; captured-surface-control" у iframe. Sandbox может блокировать.');
+      }
     }
-}
 
-function setRunning(running) {
-    $('startSync').disabled = running;
-    $('startDelayed').disabled = running;
-    $('stop').disabled = !running;
-}
+    function setRunning(running) {
+      $('startSync').disabled = running;
+      $('startDelayed').disabled = running;
+      $('stop').disabled = !running;
+    }
 
-function attachStream(s) {
-    vid.srcObject = s;
-    vid.play().catch(() => {});
-    const vTrack = s.getVideoTracks()[0];
-    if (vTrack) {
+    function attachStream(s) {
+      vid.srcObject = s;
+      vid.play().catch(() => {});
+      const vTrack = s.getVideoTracks()[0];
+      if (vTrack) {
         vTrack.onended = () => {
-            log('Трек остановлен пользователем/системой.');
-            stop();
+          log('Трек остановлен пользователем/системой.');
+          stop();
         };
+      }
     }
+    async function startCore() {
+  try {
+    log('userActivation.isActive перед вызовом:', navigator.userActivation?.isActive);
+    const s = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: true
+    });
+    stream = s;
+    attachStream(s);
+    setRunning(true);
+    log('Захват запущен. Если выбрали «Вкладка Chrome», наведите курсор на превью и прокрутите/приблизьте.');
+  } catch (e) {
+    log('getDisplayMedia reject:', e.name + ':', e.message);
+    if (e.name === 'NotAllowedError') {
+      log('Подсказка: действие могло быть без user gesture, или политика/настройки запрещают показ. Проверьте site settings и корпоративные политики.');
+    } else if (e.name === 'TypeError') {
+      log('Подсказка: нужен HTTPS или http://localhost.');
+    }
+  }
 }
-async function startCore() {
-    log('userActivation.isActive перед вызовом:', navigator.userActivation?.isActive); // Минимальный набор опций const p = navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: true }); // Обрабатываем результат/ошибку, чтобы точно увидеть причину p.then(s => { stream = s; attachStream(s); setRunning(true); log('Захват запущен. Если выбрали «Вкладка Chrome», наведите курсор на превью и прокрутите/приблизьте.'); }).catch(e => { log('getDisplayMedia reject:', e.name + ':', e.message); if (e.name === 'NotAllowedError') { log('Подсказка: действие могло быть без user gesture, или политика/настройки запрещают показ. Проверьте site settings и корпоративные политики.'); } if (e.name === 'TypeError') { log('Подсказка: нужен HTTPS или http://localhost.'); } }); } function stop() { try { if (stream) stream.getTracks().forEach(t => t.stop()); if (vid.srcObject) vid.srcObject = null; } finally { stream = null; setRunning(false); log('Шаринг остановлен.'); } } $('stop').addEventListener('click', stop); // Ключевой тест: вызов строго в том же таске, что и клик (без задержек) $('startSync').addEventListener('click', () => { log('=== Старт (синхронно) ==='); startCore(); }); // Контрпример: потеря user activation из-за setTimeout(0) $('startDelayed').addEventListener('click', () => { log('=== Старт (с задержкой) ==='); setTimeout(() => startCore(), 0); }); // Первая сводка supportReport();
+function stop() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (vid.srcObject) vid.srcObject = null;
+  } finally {
+    stream = null;
+    setRunning(false);
+    log('Шаринг остановлен.');
+  }
 }
+
+// События кнопок
+$('stop').addEventListener('click', stop);
+
+// Ключевой тест: вызов строго в том же таске, что и клик (без задержек)
+$('startSync').addEventListener('click', () => {
+  log('=== Старт (синхронно) ===');
+  startCore();
+});
+
+// Контрпример: потеря user activation из-за setTimeout(0)
+$('startDelayed').addEventListener('click', () => {
+  log('=== Старт (с задержкой) ===');
+  setTimeout(() => startCore(), 0);
+});
+
+// Первая сводка
+supportReport();
 </script>
+</body>
 </html>
