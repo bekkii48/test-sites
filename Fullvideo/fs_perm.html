@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FS + Permission</title></head>
+<body>
+  <video id="v" src="https://jing.yandex-team.ru/files/fluffyfoxy/browser_hUFULatlMu.mp4" controls muted width="640"></video>
+  <p><button onclick="enterFs()">Войти в фуллскрин и запросить пермишн</button></p>
+  <pre id="log"></pre>
+  <script>
+    const v = document.getElementById('v');
+    const log = s => { document.getElementById('log').textContent += s + '\n'; };
+
+    // === Выбери ОДИН вариант запроса (остальное закомментируй) ===
+    function requestPerm() {
+      // 1) Геолокация
+      navigator.geolocation.getCurrentPosition(
+        p => log('geo ok: ' + p.coords.latitude),
+        e => log('geo err: ' + e.message));
+
+       }
+
+    function enterFs() {
+      (v.requestFullscreen || v.webkitRequestFullscreen).call(v);
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      if (document.fullscreenElement) {
+        log('entered fullscreen -> request permission');
+        setTimeout(requestPerm, 300); // дать фуллскрину встать
+      } else {
+        log('exited fullscreen');
+      }
+    });
+  </script>
+</body></html>
